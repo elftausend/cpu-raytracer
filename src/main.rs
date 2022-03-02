@@ -5,7 +5,11 @@ use winit::dpi::PhysicalSize;
 fn main() {
     let size: PhysicalSize<u32> = PhysicalSize::new(1920, 1080);
 
-    let camera = Camera::new([-10.0, 1.0, 0.0], [0.0, 0.0, 0.0], 90.0);
+    let camera = Camera::new(
+    Vector3::new(0.0,0.0,-90.0), 
+    Vector3::new(0.0,0.0,0.0), 
+        90.0
+    );
 
     let samples: u8 = 16;
     let bounces: u8 = 64;
@@ -13,30 +17,44 @@ fn main() {
     let mut scene: Vec<Box<dyn Hitable>> = Vec::new();
 
     scene.push(Box::new(Sphere {
-        position: [0.0,0.0,0.0],
-        radius: 1.0,
+        position: Vector3::new(0.0,0.0,0.0),
+        radius: 10.0,
+        color: image::Rgb([255,120,0]),
+        reflectance: 0.0,
+    }));
+    scene.push(Box::new(Sphere {
+        position: Vector3::new(-3.0,0.0,-10.0),
+        radius: 10.0,
+        color: image::Rgb([255,120,0]),
+        reflectance: 0.0,
+    }));
+    scene.push(Box::new(Sphere {
+        position: Vector3::new(3.0,3.0,-10.0),
+        radius: 8.0,
         color: image::Rgb([255,120,0]),
         reflectance: 0.0,
     }));
 
     let mut image = image::ImageBuffer::from_fn(size.width, size.height, move |x,y| {
 
-        //let (sx, sy) = ((x as f64 / size.width as f64)*2.0-1.0, (y as f64 / size.width as f64)*2.0-1.0);
-        //let yaw = sx * (camera.fov/2.0);
-        //let pitch = sx * (camera.fov/2.0);
-        
-        let ray: Ray = Ray::new(camera.position, normalize([x as f64-size.width as f64 /2.0,y as f64 - size.height as f64/2.0, size.width as f64]));
+        let direction = Vector3::new(x as f64-(size.width as f64 /2.0),y as f64 - (size.height as f64/2.0), size.width as f64).normalized();
+        let ray: Ray = Ray::new(camera.position, direction);
+
+        let mut nearest = 1000.0;
 
         for object in &scene {
             let info = object.hit(&ray);
-            if info.is_none() {
-                return image::Rgb([0u8,0u8,0u8]);
-            } else {
-                return info.unwrap().1;
+            if info.is_some() {
+                println!("{:?}", info.as_ref().unwrap().distance);
+                if info.as_ref().unwrap().distance < nearest {
+                    nearest = info.as_ref().unwrap().distance;
+                    let normal = info.unwrap().normal;
+                    return image::Rgb([(255.0 - normal.x * 255.0) as u8, (255.0 - normal.y * 255.0) as u8, (255.0 - normal.z * 255.0) as u8]);
+                }
             }
         }
 
-        image::Rgb([0u8,0u8,0u8])
+        image::Rgb([0,0,0])
     });
 
 
@@ -44,25 +62,135 @@ fn main() {
     image.save_with_format(path, image::ImageFormat::Png).unwrap();
 }
 
-fn normalize(v: [f64;3]) -> [f64;3]{
-    let (x,y,z) = (v[0],v[1],v[2]);
-    let n = (x*x+y*y+z*z).sqrt();
-    [x/n,y/n,z/n]
+#[derive(Clone, Copy)]
+struct Vector3 {
+    x: f64,
+    y: f64,
+    z: f64,
+}
+
+impl Vector3 {
+    fn new(x: f64, y: f64, z: f64) -> Self {
+        Self {
+            x,y,z
+        }
+    }
+
+    fn mag(&self) -> f64 {
+        (self.x*self.x+self.y*self.y+self.z*self.z).sqrt()
+    }
+
+    fn normalized(&self) -> Self {
+        let mag = self.mag();
+        Self {
+            x: self.x / mag,
+            y: self.y / mag,
+            z: self.z / mag,
+        }
+    }
+
+    fn normalize(&mut self) -> &Self {
+        let mag = self.mag();
+        self.x = self.x / mag;
+        self.y = self.y / mag;
+        self.z = self.z / mag;
+        self
+    }
+}
+
+impl std::ops::Add<Vector3> for Vector3 {
+    type Output = Vector3;
+
+    fn add(self, rhs: Vector3) -> Self::Output {
+        Self::Output {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+            z: self.z + rhs.z,
+        }
+    }
+}
+
+impl std::ops::Sub<Vector3> for Vector3 {
+    type Output = Vector3;
+
+    fn sub(self, rhs: Vector3) -> Self::Output {
+        Self::Output {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+            z: self.z - rhs.z,
+        }
+    }
+}
+
+impl std::ops::Mul<Vector3> for Vector3 {
+    type Output = f64;
+
+    fn mul(self, rhs: Vector3) -> Self::Output {
+        self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
+    }
+}
+
+impl std::ops::Mul<f64> for Vector3 {
+    type Output = Vector3;
+
+    fn mul(self, rhs: f64) -> Self::Output {
+        Self::Output {
+            x: self.x * rhs, 
+            y: self.y * rhs,
+            z: self.z * rhs
+        }
+    }
+}
+
+impl std::ops::Mul<Vector3> for f64 {
+    type Output = Vector3;
+
+    fn mul(self, rhs: Vector3) -> Self::Output {
+        Self::Output {
+            x: self * rhs.x, 
+            y: self * rhs.y,
+            z: self * rhs.z
+        }
+    }
+}
+
+impl std::ops::Div<f64> for Vector3 {
+    type Output = Vector3;
+
+    fn div(self, rhs: f64) -> Self::Output {
+        Self::Output {
+            x: self.x / rhs, 
+            y: self.y / rhs,
+            z: self.z / rhs
+        }
+    }
+}
+
+impl std::ops::Div<Vector3> for f64 {
+    type Output = Vector3;
+
+    fn div(self, rhs: Vector3) -> Self::Output {
+        Self::Output {
+            x: self / rhs.x, 
+            y: self / rhs.y,
+            z: self / rhs.z
+        }
+    }
 }
 
 // ----------
 
 struct Camera {
-    position: [f64; 3],
-    rotation: [f64; 3],
+    position: Vector3,
+    rotation: Vector3,
     fov: f64,
 }
 
 impl Camera {
-    pub fn new(position: [f64;3], rotation: [f64;3], fov: f64) -> Self {
+    pub fn new(position: Vector3, rotation: Vector3, fov: f64) -> Self {
         Self {
             position,
-            rotation,
+            rotation: rotation.normalized(),
             fov,
         }
     }
@@ -71,36 +199,33 @@ impl Camera {
 // ----------
 
 struct Ray {
-    position: [f64; 3],
-    direction: [f64; 3],
+    origin: Vector3,
+    direction: Vector3,
 }
 
 impl Ray {
-    pub fn new(position: [f64;3], direction: [f64;3]) -> Self {
+    pub fn new(origin: Vector3, direction: Vector3) -> Self {
         Self {
-            position,
-            direction: normalize(direction),
+            origin,
+            direction: direction.normalized(),
         }
     }
 
-    pub fn r(&self, t: f64) -> [f64;3] {
-        let x = self.position[0] + t * self.direction[0];
-        let y = self.position[1] + t * self.direction[1];
-        let z = self.position[2] + t * self.direction[2];
-        [x,y,z]
+    pub fn function(&self, t: f64) -> Vector3 {
+        self.origin + t * self.direction
     }
 }
 
 struct Hitinfo {
-    position: [f64; 3],
-    direction: [f64; 3],
+    position: Vector3,
+    normal: Vector3,
     distance: f64,
 }
 
 // ----------
 
 trait Hitable {
-    fn hit(&self, ray: &Ray) -> Option<(f64, image::Rgb<u8>, Hitinfo)>;
+    fn hit(&self, ray: &Ray) -> Option<Hitinfo>;
 }
 
 trait Light {
@@ -110,34 +235,31 @@ trait Light {
 // ----------
 
 struct Sphere {
-    position: [f64;3],
+    position: Vector3,
     radius: f64,
     color: image::Rgb<u8>,
     reflectance: f64,
 }
 
 impl Hitable for Sphere {
-    fn hit(&self, ray: &Ray) -> Option<(f64, image::Rgb<u8>, Hitinfo)> {
-        let (rx,ry,rz) = (ray.position[0],ray.position[1],ray.position[2]);
-        let (cx,cy,cz) = (self.position[0],self.position[1],self.position[2]);
-        let (ux,uy,uz) = (ray.direction[0],ray.direction[1],ray.direction[2]);
+    fn hit(&self, ray: &Ray) -> Option<Hitinfo> {
 
-        let t = [rx-cx,ry-cy,rz-cz];
-        let v = t[0]*ux+t[1]*uy+t[2]*uz;
-        let c = ((rx-cx).exp2() + (ry-cy).exp2() + (rz-cz).exp2()).sqrt();
+        let oc = ray.origin - self.position;
+        let a =  ray.direction.mag().powi(2);
+        let half_b = oc * ray.direction;
+        let c = oc.mag().powi(2) - self.radius.powi(2);
+        let discriminant = half_b * half_b - a * c;
 
-        let d2 = self.radius*self.radius - (c*c - v*v);
+        if discriminant < 0.0 {
+            return None;
+        }
 
-        if d2 < 0.0 { return None };
+        let mut root = (-half_b - discriminant.sqrt()) / a;
 
-        let k = v-(d2).sqrt();
-
-        let intercetion = [rx+ux*k,ry+uy*k,rz+uz*k];
-
-        Some((self.reflectance, self.color, Hitinfo {
-            position: intercetion,
-            direction: normalize([intercetion[0]-cx, intercetion[1]-cy, intercetion[2]-cz]),
-            distance: k,
-        }))
+        Some(Hitinfo {
+            position: ray.function(root),
+            normal: (ray.function(root) - self.position) / self.radius,
+            distance: root,
+        })
     }
 }
