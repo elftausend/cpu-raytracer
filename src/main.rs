@@ -3,43 +3,49 @@ use std::borrow::BorrowMut;
 use cgmath::{Vector3, InnerSpace, Rotation3, Rotation, Deg};
 use image::codecs::hdr::Rgbe8Pixel;
 use math::{Rect};
-use objects::{Hitable, Hitinfo, Ray};
+use objects::{Hitable, Hitinfo, Ray, material::{Material, Diffuse}};
 
 mod objects;
 mod math;
 
 fn main() {
-    let size: Rect<u32> = Rect::new(0, 0, 1920, 1080);
+    let size: Rect<u32> = Rect::new(0, 0, 2560, 1440);
 
     let camera = Camera::new(
-    Vector3::new(0.0,0.0,120.0), 
+    Vector3::new(0.0,0.0,-120.0), 
     Vector3::new(0.0,0.0,0.0), 
         90.0
     );
 
     let samples: u8 = 16;
-    let bounces: u8 = 64;
+    let bounces: u8 = 1;
 
     let mut scene: Vec<Box<dyn Hitable>> = Vec::new();
 
     scene.push(Box::new(Sphere {
         position: Vector3::new(0.0,0.0,0.0),
         radius: 10.0,
-        color: image::Rgb([255,120,0]),
-        reflectance: 0.0,
+        color: image::Rgb([255,0,0]),
+        material: Box::new(Diffuse {}),
     }));
     scene.push(Box::new(Sphere {
         position: Vector3::new(-30.0,0.0,0.0),
         radius: 10.0,
-        color: image::Rgb([255,120,0]),
-        reflectance: 0.0,
+        color: image::Rgb([0,255,0]),
+        material: Box::new(Diffuse {}),
     }));
     scene.push(Box::new(Sphere {
         position: Vector3::new(30.0,0.0,0.0),
         radius: 10.0,
-        color: image::Rgb([255,120,0]),
-        reflectance: 0.0,
+        color: image::Rgb([0,0,255]),
+        material: Box::new(Diffuse {}),
     }));
+    /*scene.push(Box::new(Plane {
+        position: Vector3::new(0.0,-40.0,0.0),
+        normal: Vector3::new(0.0,1.0,0.0),
+        scale: Vector3::new(80.0,80.0,80.0),
+        color: image::Rgb([220,220,220]),
+    }));*/
 
     let image = image::ImageBuffer::from_fn(size.width, size.height, move |x,y| {
 
@@ -56,16 +62,17 @@ fn main() {
         let mut pixel_color = image::Rgb([0,0,0]);
 
         for object in &scene {
-            let info = object.hit(&ray);
+            let info = object.hit(&ray, &scene, bounces);
             if info.is_some() {
                 if nearest.is_none() {
                     nearest = Some(*info.as_ref().unwrap())
                 }
                 //println!("{:?}", info.as_ref().unwrap().distance);
-                if info.as_ref().unwrap().distance <= nearest.as_ref().unwrap().distance {
+                if info.as_ref().unwrap().distance >= nearest.as_ref().unwrap().distance {
                     nearest = Some(*info.as_ref().unwrap());
-                    let normal = info.unwrap().normal;
-                    pixel_color = image::Rgb([(255.0 - normal.x * 255.0) as u8, (255.0 - normal.y * 255.0) as u8, (255.0 - normal.z * 255.0) as u8]);
+                    let normal = nearest.unwrap().normal;
+                    pixel_color = nearest.unwrap().color;
+                    //pixel_color = image::Rgb([(255.0 - normal.x * 255.0) as u8, (255.0 - normal.y * 255.0) as u8, (255.0 - normal.z * 255.0) as u8]);
                 }
             }
             //println!("{}", *nearest < 1000.0);
@@ -120,11 +127,11 @@ struct Sphere {
     position: Vector3<f64>,
     radius: f64,
     color: image::Rgb<u8>,
-    reflectance: f64,
+    material: Box<dyn Material>
 }
 
 impl Hitable for Sphere {
-    fn hit(&self, ray: &Ray) -> Option<Hitinfo> {
+    fn hit(&self, ray: &Ray, scene: &Vec<Box<dyn Hitable>>, bounce_limit: u8) -> Option<Hitinfo> {
 
         let oc = ray.origin - self.position;
 
@@ -140,12 +147,51 @@ impl Hitable for Sphere {
             return None;
         }
 
-        let mut root = (-half_b - discriminant.sqrt()) / a;
+        let root = (-half_b - discriminant.sqrt()) / a;
 
-        Some(Hitinfo {
+        let mut info = Hitinfo {
             position: ray.function(root),
             normal: (ray.function(root) - self.position) / self.radius,
             distance: root,
+            color: self.color,
+            scene: Some(scene),
+        };
+        
+        let mat_info = self.material.as_ref().calc_mat(&info, scene, bounce_limit);
+
+        Some(Hitinfo {
+            position: info.position,
+            normal: info.normal,
+            distance: info.distance,
+            color: if mat_info.is_none() {info.color} else { mat_info.as_ref().unwrap().color},
+            scene: None,
         })
     }
 }
+
+/*
+struct Plane {
+    position: Vector3<f64>,
+    normal: Vector3<f64>,
+    scale: Vector3<f64>,
+    color: image::Rgb<u8>,
+}
+
+impl Hitable for Plane {
+    fn hit(&self, ray: &Ray, scene: &Vec<Box<dyn Hitable>>) -> Option<Hitinfo> {
+
+        let denom = self.normal.dot(ray.direction);
+        if denom.abs() > 0.0001 {
+            let t = (self.position - ray.origin).dot(self.normal) / denom;
+            return Some(Hitinfo {
+                position: ray.origin + ray.direction * t,
+                normal: self.normal,
+                distance: t,
+                color: self.color,
+                scene: None
+            });
+        }
+
+        None
+    }
+}*/
