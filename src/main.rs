@@ -157,7 +157,7 @@ impl Hitable for Sphere {
             scene: Some(scene),
         };
         
-        let mat_info = self.material.as_ref().calc_mat(&info, scene, bounce_limit);
+        let mat_info = self.material.as_ref().calc_mat(&info, scene, bounce_limit); // Implement this in the main Loop
 
         Some(Hitinfo {
             position: info.position,

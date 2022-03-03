@@ -40,6 +40,7 @@ impl Material for Diffuse {
 
         let mut pixel_color = image::Rgb([0,0,0]);
 
+        // This causes an overflow!!!!
         for object in scene {
             let info = object.hit(&ray, &scene, bounce_limit-1);
             if info.is_some() {
