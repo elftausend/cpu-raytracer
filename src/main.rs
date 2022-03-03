@@ -1,12 +1,18 @@
 use std::borrow::BorrowMut;
 
+use cgmath::{Vector3, InnerSpace, Rotation3, Rotation, Deg};
 use image::codecs::hdr::Rgbe8Pixel;
-use winit::dpi::PhysicalSize;
+use math::{Rect};
+use objects::{Hitable, Hitinfo, Ray};
+
+mod objects;
+mod math;
+
 fn main() {
-    let size: PhysicalSize<u32> = PhysicalSize::new(1920, 1080);
+    let size: Rect<u32> = Rect::new(0, 0, 1920, 1080);
 
     let camera = Camera::new(
-    Vector3::new(0.0,-9.0,-90.0), 
+    Vector3::new(0.0,0.0,120.0), 
     Vector3::new(0.0,0.0,0.0), 
         90.0
     );
@@ -23,21 +29,26 @@ fn main() {
         reflectance: 0.0,
     }));
     scene.push(Box::new(Sphere {
-        position: Vector3::new(-8.0,2.0,-10.0),
+        position: Vector3::new(-30.0,0.0,0.0),
         radius: 10.0,
         color: image::Rgb([255,120,0]),
         reflectance: 0.0,
     }));
     scene.push(Box::new(Sphere {
-        position: Vector3::new(3.0,3.0,-10.0),
-        radius: 8.0,
+        position: Vector3::new(30.0,0.0,0.0),
+        radius: 10.0,
         color: image::Rgb([255,120,0]),
         reflectance: 0.0,
     }));
 
     let image = image::ImageBuffer::from_fn(size.width, size.height, move |x,y| {
 
-        let direction = Vector3::new(x as f64-(size.width as f64 /2.0),y as f64 - (size.height as f64/2.0), size.width as f64).normalized();
+        let mut direction = Vector3::new(x as f64-(size.width as f64 /2.0),y as f64 - (size.height as f64/2.0), size.width as f64).normalize();
+        
+        // Rotate direction 
+        direction = camera.rotate_vec(direction);
+        //println!("{:?}", direction);
+        
         let ray: Ray = Ray::new(camera.position, direction);
 
         let mut nearest: Option<Hitinfo> = None;
@@ -63,186 +74,41 @@ fn main() {
         pixel_color
     });
 
-
     let path = format!("{}/out.png", std::env::current_dir().unwrap().display());
     image.save_with_format(path, image::ImageFormat::Png).unwrap();
-}
-
-#[derive(Clone, Copy)]
-struct Vector3 {
-    x: f64,
-    y: f64,
-    z: f64,
-}
-
-impl Vector3 {
-    fn new(x: f64, y: f64, z: f64) -> Self {
-        Self {
-            x,y,z
-        }
-    }
-
-    fn mag(&self) -> f64 {
-        (self.x*self.x+self.y*self.y+self.z*self.z).sqrt()
-    }
-
-    fn normalized(&self) -> Self {
-        let mag = self.mag();
-        Self {
-            x: self.x / mag,
-            y: self.y / mag,
-            z: self.z / mag,
-        }
-    }
-
-    fn normalize(&mut self) -> &Self {
-        let mag = self.mag();
-        self.x = self.x / mag;
-        self.y = self.y / mag;
-        self.z = self.z / mag;
-        self
-    }
-}
-
-impl std::ops::Add<Vector3> for Vector3 {
-    type Output = Vector3;
-
-    fn add(self, rhs: Vector3) -> Self::Output {
-        Self::Output {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-            z: self.z + rhs.z,
-        }
-    }
-}
-
-impl std::ops::AddAssign<Vector3> for Vector3 {
-
-    fn add_assign(&mut self, rhs: Vector3) {
-        self.x += rhs.x;
-        self.y += rhs.y;
-        self.z += rhs.z;
-    }
-}
-
-impl std::ops::Sub<Vector3> for Vector3 {
-    type Output = Vector3;
-
-    fn sub(self, rhs: Vector3) -> Self::Output {
-        Self::Output {
-            x: self.x - rhs.x,
-            y: self.y - rhs.y,
-            z: self.z - rhs.z,
-        }
-    }
-}
-
-impl std::ops::Mul<Vector3> for Vector3 {
-    type Output = f64;
-
-    fn mul(self, rhs: Vector3) -> Self::Output {
-        self.x * rhs.x + self.y * rhs.y + self.z * rhs.z
-    }
-}
-
-impl std::ops::Mul<f64> for Vector3 {
-    type Output = Vector3;
-
-    fn mul(self, rhs: f64) -> Self::Output {
-        Self::Output {
-            x: self.x * rhs, 
-            y: self.y * rhs,
-            z: self.z * rhs
-        }
-    }
-}
-
-impl std::ops::Mul<Vector3> for f64 {
-    type Output = Vector3;
-
-    fn mul(self, rhs: Vector3) -> Self::Output {
-        Self::Output {
-            x: self * rhs.x, 
-            y: self * rhs.y,
-            z: self * rhs.z
-        }
-    }
-}
-
-impl std::ops::Div<f64> for Vector3 {
-    type Output = Vector3;
-
-    fn div(self, rhs: f64) -> Self::Output {
-        Self::Output {
-            x: self.x / rhs, 
-            y: self.y / rhs,
-            z: self.z / rhs
-        }
-    }
-}
-
-impl std::ops::Div<Vector3> for f64 {
-    type Output = Vector3;
-
-    fn div(self, rhs: Vector3) -> Self::Output {
-        Self::Output {
-            x: self / rhs.x, 
-            y: self / rhs.y,
-            z: self / rhs.z
-        }
-    }
 }
 
 // ----------
 
 struct Camera {
-    position: Vector3,
-    rotation: Vector3,
+    position: Vector3<f64>,
+    rotation: Vector3<f64>,
     fov: f64,
 }
 
 impl Camera {
-    pub fn new(position: Vector3, rotation: Vector3, fov: f64) -> Self {
+    pub fn new(position: Vector3<f64>, rotation: Vector3<f64>, fov: f64) -> Self {
         Self {
             position,
-            rotation: rotation.normalized(),
+            rotation,
             fov,
         }
     }
+
+    pub fn rotate_vec(&self, mut v: Vector3<f64>) -> Vector3<f64> {
+        let rotation_matrix = cgmath::Basis3::from_angle_z(cgmath::Deg(self.rotation.z));
+        v = rotation_matrix.rotate_vector(v);
+        let rotation_matrix = cgmath::Basis3::from_angle_x(cgmath::Deg(self.rotation.x));
+        v = rotation_matrix.rotate_vector(v);
+        let rotation_matrix = cgmath::Basis3::from_angle_y(cgmath::Deg(self.rotation.y));
+        v = rotation_matrix.rotate_vector(v);
+        v
+    }
 }
 
 // ----------
 
-struct Ray {
-    origin: Vector3,
-    direction: Vector3,
-}
-
-impl Ray {
-    pub fn new(origin: Vector3, direction: Vector3) -> Self {
-        Self {
-            origin,
-            direction: direction.normalized(),
-        }
-    }
-
-    pub fn function(&self, t: f64) -> Vector3 {
-        self.origin + t * self.direction
-    }
-}
-
-#[derive(Clone, Copy)]
-struct Hitinfo {
-    position: Vector3,
-    normal: Vector3,
-    distance: f64,
-}
-
 // ----------
-
-trait Hitable {
-    fn hit(&self, ray: &Ray) -> Option<Hitinfo>;
-}
 
 trait Light {
     fn is_illuminted(&self, position: &[f64; 3]);
@@ -251,7 +117,7 @@ trait Light {
 // ----------
 
 struct Sphere {
-    position: Vector3,
+    position: Vector3<f64>,
     radius: f64,
     color: image::Rgb<u8>,
     reflectance: f64,
@@ -261,9 +127,13 @@ impl Hitable for Sphere {
     fn hit(&self, ray: &Ray) -> Option<Hitinfo> {
 
         let oc = ray.origin - self.position;
-        let a =  ray.direction.mag().powi(2);
-        let half_b = oc * ray.direction;
-        let c = oc.mag().powi(2) - self.radius.powi(2);
+
+        let a =  ray.direction.magnitude2();
+
+        let half_b = ray.direction.dot(oc);
+
+        let c = oc.magnitude2() - self.radius.powi(2);
+
         let discriminant = half_b * half_b - a * c;
 
         if discriminant < 0.0 {
