@@ -23,7 +23,7 @@ fn main() {
         reflectance: 0.0,
     }));
     scene.push(Box::new(Sphere {
-        position: Vector3::new(-3.0,0.0,-10.0),
+        position: Vector3::new(-8.0,2.0,-10.0),
         radius: 10.0,
         color: image::Rgb([255,120,0]),
         reflectance: 0.0,
@@ -40,21 +40,27 @@ fn main() {
         let direction = Vector3::new(x as f64-(size.width as f64 /2.0),y as f64 - (size.height as f64/2.0), size.width as f64).normalized();
         let ray: Ray = Ray::new(camera.position, direction);
 
-        let mut nearest = 1000.0;
+        let mut nearest: Option<Hitinfo> = None;
+
+        let mut pixel_color = image::Rgb([0,0,0]);
 
         for object in &scene {
             let info = object.hit(&ray);
             if info.is_some() {
-                println!("{:?}", info.as_ref().unwrap().distance);
-                if info.as_ref().unwrap().distance < nearest {
-                    nearest = info.as_ref().unwrap().distance;
+                if nearest.is_none() {
+                    nearest = Some(*info.as_ref().unwrap())
+                }
+                //println!("{:?}", info.as_ref().unwrap().distance);
+                if info.as_ref().unwrap().distance <= nearest.as_ref().unwrap().distance {
+                    nearest = Some(*info.as_ref().unwrap());
                     let normal = info.unwrap().normal;
-                    return image::Rgb([(255.0 - normal.x * 255.0) as u8, (255.0 - normal.y * 255.0) as u8, (255.0 - normal.z * 255.0) as u8]);
+                    pixel_color = image::Rgb([(255.0 - normal.x * 255.0) as u8, (255.0 - normal.y * 255.0) as u8, (255.0 - normal.z * 255.0) as u8]);
                 }
             }
+            //println!("{}", *nearest < 1000.0);
         }
 
-        image::Rgb([0,0,0])
+        pixel_color
     });
 
 
@@ -216,6 +222,7 @@ impl Ray {
     }
 }
 
+#[derive(Clone, Copy)]
 struct Hitinfo {
     position: Vector3,
     normal: Vector3,
