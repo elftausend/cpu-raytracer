@@ -6,7 +6,7 @@ fn main() {
     let size: PhysicalSize<u32> = PhysicalSize::new(1920, 1080);
 
     let camera = Camera::new(
-    Vector3::new(0.0,0.0,-90.0), 
+    Vector3::new(0.0,-9.0,-90.0), 
     Vector3::new(0.0,0.0,0.0), 
         90.0
     );
@@ -35,7 +35,7 @@ fn main() {
         reflectance: 0.0,
     }));
 
-    let mut image = image::ImageBuffer::from_fn(size.width, size.height, move |x,y| {
+    let image = image::ImageBuffer::from_fn(size.width, size.height, move |x,y| {
 
         let direction = Vector3::new(x as f64-(size.width as f64 /2.0),y as f64 - (size.height as f64/2.0), size.width as f64).normalized();
         let ray: Ray = Ray::new(camera.position, direction);
@@ -113,6 +113,15 @@ impl std::ops::Add<Vector3> for Vector3 {
             y: self.y + rhs.y,
             z: self.z + rhs.z,
         }
+    }
+}
+
+impl std::ops::AddAssign<Vector3> for Vector3 {
+
+    fn add_assign(&mut self, rhs: Vector3) {
+        self.x += rhs.x;
+        self.y += rhs.y;
+        self.z += rhs.z;
     }
 }
 
