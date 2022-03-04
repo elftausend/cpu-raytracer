@@ -12,7 +12,7 @@ fn main() {
     let size: Rect<u32> = Rect::new(0, 0, 2560, 1440);
 
     let camera = Camera::new(
-    Vector3::new(-100.0,0.0,-120.0), 
+    Vector3::new(-120.0,0.0,-120.0), 
     Vector3::new(0.0,45.0,0.0), 
         90.0
     );
