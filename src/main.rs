@@ -3,7 +3,7 @@ use std::borrow::BorrowMut;
 use cgmath::{Vector3, InnerSpace, Rotation3, Rotation, Deg};
 use image::codecs::hdr::Rgbe8Pixel;
 use math::{Rect};
-use objects::{Hitable, Hitinfo, Ray, material::{Material, Diffuse}};
+use objects::{Hitable, Hitinfo, Ray, material::{Diffuse}, Material};
 
 mod objects;
 mod math;
@@ -12,13 +12,13 @@ fn main() {
     let size: Rect<u32> = Rect::new(0, 0, 2560, 1440);
 
     let camera = Camera::new(
-    Vector3::new(0.0,0.0,-120.0), 
-    Vector3::new(0.0,0.0,0.0), 
+    Vector3::new(-100.0,0.0,-120.0), 
+    Vector3::new(0.0,45.0,0.0), 
         90.0
     );
 
     let samples: u8 = 16;
-    let bounces: u8 = 1;
+    let bounces: u8 = 3;
 
     let mut scene: Vec<Box<dyn Hitable>> = Vec::new();
 
@@ -49,7 +49,7 @@ fn main() {
 
     let image = image::ImageBuffer::from_fn(size.width, size.height, move |x,y| {
 
-        let mut direction = Vector3::new(x as f64-(size.width as f64 /2.0),y as f64 - (size.height as f64/2.0), size.width as f64).normalize();
+        let mut direction = Vector3::new(x as f64-(size.width as f64 /2.0),y as f64 - (size.height as f64/2.0), size.width as f64 * 2.0).normalize();
         
         // Rotate direction 
         direction = camera.rotate_vec(direction);
@@ -70,8 +70,9 @@ fn main() {
                 //println!("{:?}", info.as_ref().unwrap().distance);
                 if info.as_ref().unwrap().distance >= nearest.as_ref().unwrap().distance {
                     nearest = Some(*info.as_ref().unwrap());
+                    let mat = info.as_ref().unwrap().material.calc_mat(info.as_ref().unwrap(), &scene, bounces);
                     let normal = nearest.unwrap().normal;
-                    pixel_color = nearest.unwrap().color;
+                    pixel_color = mat;
                     //pixel_color = image::Rgb([(255.0 - normal.x * 255.0) as u8, (255.0 - normal.y * 255.0) as u8, (255.0 - normal.z * 255.0) as u8]);
                 }
             }
@@ -118,10 +119,11 @@ impl Camera {
 // ----------
 
 trait Light {
-    fn is_illuminted(&self, position: &[f64; 3]);
+    fn is_illuminted(&self, ray: &Ray, scene: &Vec<Box<dyn Hitable>>);
 }
 
 // ----------
+
 
 struct Sphere {
     position: Vector3<f64>,
@@ -149,22 +151,13 @@ impl Hitable for Sphere {
 
         let root = (-half_b - discriminant.sqrt()) / a;
 
-        let mut info = Hitinfo {
+        Some(Hitinfo {
             position: ray.function(root),
             normal: (ray.function(root) - self.position) / self.radius,
             distance: root,
             color: self.color,
-            scene: Some(scene),
-        };
-        
-        let mat_info = self.material.as_ref().calc_mat(&info, scene, bounce_limit); // Implement this in the main Loop
-
-        Some(Hitinfo {
-            position: info.position,
-            normal: info.normal,
-            distance: info.distance,
-            color: if mat_info.is_none() {info.color} else { mat_info.as_ref().unwrap().color},
             scene: None,
+            material: &self.material,
         })
     }
 }
