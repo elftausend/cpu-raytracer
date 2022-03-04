@@ -18,19 +18,15 @@ impl Diffuse {
     }
 
     fn random_in_unit_sphere() -> Vector3<f64> {
-        loop {
-            let random_vector = Diffuse::random_uni_vector();
-            if random_vector.magnitude2() >= 1.0 {
-                continue;
-            }
-            return random_vector;
-        }
+        Diffuse::random_vector(-1.0, 1.0).normalize()
     }
 }
 
 impl Material for Diffuse {
     fn calc_mat(&self, info: &Hitinfo, scene: &Vec<Box<dyn Hitable>>, bounce_limit: u8) -> Rgb<u8> {
         let target = info.position + info.normal + Diffuse::random_in_unit_sphere();
+
+        let light_direction = Vector3::new(0.0, 1.0, 0.0).normalize();
 
         let ray: Ray = Ray::new(info.position, target);
 
@@ -48,8 +44,18 @@ impl Material for Diffuse {
                 //println!("{:?}", info.as_ref().unwrap().distance);
                 if sec.as_ref().unwrap().distance >= nearest.as_ref().unwrap().distance {
                     nearest = Some(*sec.as_ref().unwrap());
+                    let d = sec.as_ref().unwrap().normal.dot(light_direction);
                     let normal = nearest.unwrap().normal;
-                    pixel_color = add_color_bias(info.color, nearest.unwrap().color, 0.5);
+                    //pixel_color = add_color_bias(info.color, nearest.unwrap().color, 0.5);
+                    pixel_color = Rgb([
+                        ((sec.as_ref().unwrap().normal.x/2.0+1.0) * 255.0) as u8, 
+                        ((sec.as_ref().unwrap().normal.y/2.0+1.0) * 255.0) as u8, 
+                        ((sec.as_ref().unwrap().normal.z/2.0+1.0) * 255.0) as u8
+                    ]);
+                    //println!("{}", d);
+                    if d < 0.0001 {
+                        pixel_color = add_color_bias(pixel_color, Rgb([0,0,0]), 0.2);
+                    }
                     //pixel_color = image::Rgb([(255.0 - normal.x * 255.0) as u8, (255.0 - normal.y * 255.0) as u8, (255.0 - normal.z * 255.0) as u8]);
                 }
             }

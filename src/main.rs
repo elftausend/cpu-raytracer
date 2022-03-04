@@ -12,8 +12,8 @@ fn main() {
     let size: Rect<u32> = Rect::new(0, 0, 2560, 1440);
 
     let camera = Camera::new(
-    Vector3::new(-120.0,0.0,-120.0), 
-    Vector3::new(0.0,45.0,0.0), 
+    Vector3::new(0.0,0.0,-120.0), 
+    Vector3::new(0.0,0.0,0.0), 
         90.0
     );
 
@@ -23,21 +23,21 @@ fn main() {
     let mut scene: Vec<Box<dyn Hitable>> = Vec::new();
 
     scene.push(Box::new(Sphere {
-        position: Vector3::new(0.0,0.0,0.0),
+        position: Vector3::new(30.0,0.0,0.0),
         radius: 10.0,
-        color: image::Rgb([255,0,0]),
+        color: image::Rgb([0,0,255]),
         material: Box::new(Diffuse {}),
     }));
     scene.push(Box::new(Sphere {
         position: Vector3::new(-30.0,0.0,0.0),
         radius: 10.0,
-        color: image::Rgb([0,255,0]),
+        color: image::Rgb([255,255,255]),
         material: Box::new(Diffuse {}),
     }));
     scene.push(Box::new(Sphere {
-        position: Vector3::new(30.0,0.0,0.0),
+        position: Vector3::new(0.0,0.0,0.0),
         radius: 10.0,
-        color: image::Rgb([0,0,255]),
+        color: image::Rgb([255,0,0]),
         material: Box::new(Diffuse {}),
     }));
     /*scene.push(Box::new(Plane {
@@ -49,7 +49,7 @@ fn main() {
 
     let image = image::ImageBuffer::from_fn(size.width, size.height, move |x,y| {
 
-        let mut direction = Vector3::new(x as f64-(size.width as f64 /2.0),y as f64 - (size.height as f64/2.0), size.width as f64 * 2.0).normalize();
+        let mut direction = Vector3::new(x as f64-(size.width as f64 /2.0),y as f64 - (size.height as f64/2.0), size.width as f64).normalize();
         
         // Rotate direction 
         direction = camera.rotate_vec(direction);
