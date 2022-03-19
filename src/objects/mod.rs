@@ -28,7 +28,7 @@ pub struct Hitinfo<'a> {
     pub distance: f64,
     pub color: image::Rgb<u8>,
     pub scene: Option<&'a Vec<Box<dyn Hitable>>>,
-    pub material: &'a Box<dyn Material>
+    pub material: &'a Box<dyn Material>,
 }
 
 pub trait Hitable {
@@ -36,5 +36,5 @@ pub trait Hitable {
 }
 
 pub trait Material {
-    fn calc_mat(&self, info: &Hitinfo, scene: &Vec<Box<dyn Hitable>>, bounce_limit: u8) -> Rgb<u8>;
+    fn calc_mat(&self, info: &Hitinfo, scene: &[Box<dyn Hitable>], bounce_limit: u8) -> Rgb<u8>;
 }

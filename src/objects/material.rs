@@ -1,14 +1,19 @@
 use cgmath::{Vector3, InnerSpace};
 use image::Rgb;
 
+use crate::Sphere;
+
 use super::{Hitinfo, Hitable, Ray, Material};
 
 #[derive(Clone, Copy)]
 pub struct Diffuse {
-
+    color: Rgb<u8>
 }
 
 impl Diffuse {
+    pub fn new(color: Rgb<u8>) -> Diffuse {
+        Diffuse { color }
+    }
     fn random_uni_vector() -> Vector3<f64> {
         Vector3::new(rand::random::<f64>()*2.0-1.0, rand::random::<f64>()*2.0-1.0, rand::random::<f64>()*2.0-1.0)
     }
@@ -23,7 +28,7 @@ impl Diffuse {
 }
 
 impl Material for Diffuse {
-    fn calc_mat(&self, info: &Hitinfo, scene: &Vec<Box<dyn Hitable>>, bounce_limit: u8) -> Rgb<u8> {
+    fn calc_mat(&self, info: &Hitinfo, scene: &[Box<dyn Hitable>], bounce_limit: u8) -> Rgb<u8> {
         let target = info.position + info.normal + Diffuse::random_in_unit_sphere();
 
         let light_direction = Vector3::new(0.0, 1.0, 0.0).normalize();
@@ -32,35 +37,29 @@ impl Material for Diffuse {
 
         let mut nearest: Option<Hitinfo> = None;
 
-        let mut pixel_color = image::Rgb([255,255,255]);
+        //let mut pixel_color = image::Rgb([255,255,255]);
+        let mut pixel_color = Rgb([0, 0, 0]);
 
-        // This causes an overflow!!!!
-        for object in scene {
-            let sec = object.hit(&ray, &scene, bounce_limit-1);
-            if sec.is_some() {
+        // This causes an overflow!!!! ??
+        scene.iter()
+            .filter_map(|object| object.hit(&ray, scene, bounce_limit-1))
+            .for_each(|sec| {
                 if nearest.is_none() {
-                    nearest = Some(*sec.as_ref().unwrap())
+                    nearest = Some(sec);
                 }
-                //println!("{:?}", info.as_ref().unwrap().distance);
-                if sec.as_ref().unwrap().distance >= nearest.as_ref().unwrap().distance {
-                    nearest = Some(*sec.as_ref().unwrap());
-                    let d = sec.as_ref().unwrap().normal.dot(light_direction);
-                    let normal = nearest.unwrap().normal;
-                    //pixel_color = add_color_bias(info.color, nearest.unwrap().color, 0.5);
+                if sec.distance >= nearest.unwrap().distance {
+                    nearest = Some(sec);
+                    let d = sec.normal.dot(light_direction);
                     pixel_color = Rgb([
-                        ((sec.as_ref().unwrap().normal.x/2.0+1.0) * 255.0) as u8, 
-                        ((sec.as_ref().unwrap().normal.y/2.0+1.0) * 255.0) as u8, 
-                        ((sec.as_ref().unwrap().normal.z/2.0+1.0) * 255.0) as u8
+                        ((sec.normal.x/2.0+1.0) * self.color[0] as f64) as u8, 
+                        ((sec.normal.y/2.0+1.0) * self.color[1] as f64) as u8, 
+                        ((sec.normal.z/2.0+1.0) * self.color[2] as f64) as u8
                     ]);
-                    //println!("{}", d);
                     if d < 0.0001 {
                         pixel_color = add_color_bias(pixel_color, Rgb([0,0,0]), 0.2);
                     }
-                    //pixel_color = image::Rgb([(255.0 - normal.x * 255.0) as u8, (255.0 - normal.y * 255.0) as u8, (255.0 - normal.z * 255.0) as u8]);
                 }
-            }
-            //println!("{}", *nearest < 1000.0);
-        }
+            });
 
         pixel_color
     }

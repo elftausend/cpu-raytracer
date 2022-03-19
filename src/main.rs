@@ -23,7 +23,8 @@ fn main() {
         Sphere::boxed(Vector3::new(30., 0., 0.), 10., image::Rgb([0, 0, 255])),
         Sphere::boxed(Vector3::new(-30.0,0.0,0.0), 10.0, image::Rgb([255,255,255])),
         Sphere::boxed(Vector3::new(0., 0., 0.,), 10., image::Rgb([255, 0, 0])),
-        Sphere::boxed(Vector3::new(0.0,-30., 0.), 10., image::Rgb([128, 128, 128]))
+        Sphere::boxed(Vector3::new(0.0, 23., 0.), 10., image::Rgb([128, 128, 128])),
+        Sphere::boxed(Vector3::new(0.0, -23., 0.), 10., image::Rgb([50, 128, 0]))
     ];
 
     /*scene.push(Box::new(Plane {
@@ -55,6 +56,7 @@ fn main() {
                 }
                 if info.distance >= nearest.unwrap().distance {
                     nearest = Some(info);
+
                     let mat = info.material.calc_mat(&info, &scene, bounces);
                     pixel_color = mat;
                 }
@@ -119,7 +121,7 @@ impl Sphere {
             position,
             radius,
             color,
-            material: Box::new(Diffuse {})
+            material: Box::new(Diffuse::new(color))
         })
     } 
 }

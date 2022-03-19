@@ -1,5 +1,5 @@
 
-pub struct Rect<T: ?Copy> {
+pub struct Rect<T> {
     pub width: T,
     pub height: T,
     pub x: T,
