@@ -32,7 +32,7 @@ pub struct Hitinfo<'a> {
 }
 
 pub trait Hitable {
-    fn hit(&self, ray: &Ray, scene: &Vec<Box<dyn Hitable>>, bounce_limit: u8) -> Option<Hitinfo>;
+    fn hit(&self, ray: &Ray, scene: &[Box<dyn Hitable>], bounce_limit: u8) -> Option<Hitinfo>;
 }
 
 pub trait Material {

@@ -1,9 +1,6 @@
-use std::borrow::BorrowMut;
-
-use cgmath::{Vector3, InnerSpace, Rotation3, Rotation, Deg};
-use image::codecs::hdr::Rgbe8Pixel;
-use math::{Rect};
-use objects::{Hitable, Hitinfo, Ray, material::{Diffuse}, Material};
+use cgmath::{Vector3, InnerSpace, Rotation3, Rotation};
+use math::Rect;
+use objects::{Hitable, Hitinfo, Ray, material::Diffuse, Material};
 
 mod objects;
 mod math;
@@ -20,26 +17,15 @@ fn main() {
     let samples: u8 = 16;
     let bounces: u8 = 3;
 
-    let mut scene: Vec<Box<dyn Hitable>> = Vec::new();
+    
 
-    scene.push(Box::new(Sphere {
-        position: Vector3::new(30.0,0.0,0.0),
-        radius: 10.0,
-        color: image::Rgb([0,0,255]),
-        material: Box::new(Diffuse {}),
-    }));
-    scene.push(Box::new(Sphere {
-        position: Vector3::new(-30.0,0.0,0.0),
-        radius: 10.0,
-        color: image::Rgb([255,255,255]),
-        material: Box::new(Diffuse {}),
-    }));
-    scene.push(Box::new(Sphere {
-        position: Vector3::new(0.0,0.0,0.0),
-        radius: 10.0,
-        color: image::Rgb([255,0,0]),
-        material: Box::new(Diffuse {}),
-    }));
+    let scene: Vec<Box<dyn Hitable>> = vec![
+        Sphere::boxed(Vector3::new(30., 0., 0.), 10., image::Rgb([0, 0, 255])),
+        Sphere::boxed(Vector3::new(-30.0,0.0,0.0), 10.0, image::Rgb([255,255,255])),
+        Sphere::boxed(Vector3::new(0., 0., 0.,), 10., image::Rgb([255, 0, 0])),
+        Sphere::boxed(Vector3::new(0.0,-30., 0.), 10., image::Rgb([128, 128, 128]))
+    ];
+
     /*scene.push(Box::new(Plane {
         position: Vector3::new(0.0,-40.0,0.0),
         normal: Vector3::new(0.0,1.0,0.0),
@@ -61,23 +47,18 @@ fn main() {
 
         let mut pixel_color = image::Rgb([0,0,0]);
 
-        for object in &scene {
-            let info = object.hit(&ray, &scene, bounces);
-            if info.is_some() {
+        scene.iter()
+            .filter_map(|object| object.hit(&ray, &scene, bounces))
+            .for_each(|info| {
                 if nearest.is_none() {
-                    nearest = Some(*info.as_ref().unwrap())
+                    nearest = Some(info);
                 }
-                //println!("{:?}", info.as_ref().unwrap().distance);
-                if info.as_ref().unwrap().distance >= nearest.as_ref().unwrap().distance {
-                    nearest = Some(*info.as_ref().unwrap());
-                    let mat = info.as_ref().unwrap().material.calc_mat(info.as_ref().unwrap(), &scene, bounces);
-                    let normal = nearest.unwrap().normal;
+                if info.distance >= nearest.unwrap().distance {
+                    nearest = Some(info);
+                    let mat = info.material.calc_mat(&info, &scene, bounces);
                     pixel_color = mat;
-                    //pixel_color = image::Rgb([(255.0 - normal.x * 255.0) as u8, (255.0 - normal.y * 255.0) as u8, (255.0 - normal.z * 255.0) as u8]);
                 }
-            }
-            //println!("{}", *nearest < 1000.0);
-        }
+            });
 
         pixel_color
     });
@@ -119,7 +100,7 @@ impl Camera {
 // ----------
 
 trait Light {
-    fn is_illuminted(&self, ray: &Ray, scene: &Vec<Box<dyn Hitable>>);
+    fn is_illuminted(&self, ray: &Ray, scene: &[Box<dyn Hitable>]);
 }
 
 // ----------
@@ -132,8 +113,19 @@ struct Sphere {
     material: Box<dyn Material>
 }
 
+impl Sphere {
+    pub fn boxed(position: Vector3<f64>, radius: f64, color: image::Rgb<u8>) -> Box<Sphere> {
+        Box::new(Sphere {
+            position,
+            radius,
+            color,
+            material: Box::new(Diffuse {})
+        })
+    } 
+}
+
 impl Hitable for Sphere {
-    fn hit(&self, ray: &Ray, scene: &Vec<Box<dyn Hitable>>, bounce_limit: u8) -> Option<Hitinfo> {
+    fn hit(&self, ray: &Ray, scene: &[Box<dyn Hitable>], bounce_limit: u8) -> Option<Hitinfo> {
 
         let oc = ray.origin - self.position;
 
